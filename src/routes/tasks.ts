@@ -37,8 +37,18 @@ export function createTaskRouter(db: Database): Router {
     // 1. Validate request body
     // 2. Call taskService.createTask()
     // 3. Return created task
-    res.status(501).json({ error: 'Not implemented' });
-  });
+    try {
+      if (!req.body) {
+        res.status(500).json({ error: 'No Body provided' });
+      }
+      const task =await taskService.createTask(req.body);
+      res.status(201).json(task);
+
+    } catch (error) {
+      res.status(501).json({ error: 'Task Not Created' ,message:error});
+    }
+  }
+  );
 
   // Update task
   router.put('/:id', async (req: Request, res: Response) => {
@@ -47,7 +57,16 @@ export function createTaskRouter(db: Database): Router {
     // 2. Call taskService.updateTask()
     // 3. Handle not found case
     // 4. Return updated task
-    res.status(501).json({ error: 'Not implemented' });
+      try {
+      if (!req.body) {
+        res.status(500).json({ error: 'No Body provided' });
+      }
+      const task = taskService.updateTask(req.params.id,req.body);
+      res.status(200).json(task);
+
+    } catch (error) {
+      res.status(501).json({ error: 'Task Not Updated' });
+    }
   });
 
   // Delete task

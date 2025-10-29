@@ -3,7 +3,7 @@ import { Task } from '../types';
 import { Database } from '../db/database';
 
 export class TaskService {
-  constructor(private db: Database) {}
+  constructor(private db: Database) { }
 
   async createTask(taskData: Partial<Task>): Promise<Task> {
     // TODO: Implement task creation
@@ -12,7 +12,39 @@ export class TaskService {
     // 3. Set sync_status to 'pending'
     // 4. Insert into database
     // 5. Add to sync queue
-    throw new Error('Not implemented');
+    taskData.id = uuidv4();
+
+    await this.db.run(
+      `INSERT INTO tasks (id, title, description, created_at, updated_at)
+   VALUES (?, ?, ?, ?, ?)`,
+      [
+        taskData.id,
+        taskData.title,
+        taskData.description,
+        new Date(),
+        new Date()
+      ]
+    );
+
+    const task = await this.db.get(
+      `SELECT * FROM tasks WHERE id = ?;`,
+      [taskData.id]
+    );
+
+    await this.db.run(
+      `INSERT INTO sync_queue (id, task_id, operation,data, created_at)
+   VALUES (?, ?, ?, ?, ?)`,
+      [
+        uuidv4(),
+        task.id,
+        "create",
+        task,
+        new Date()
+      ]
+    );
+
+    return task;
+
   }
 
   async updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
@@ -36,17 +68,38 @@ export class TaskService {
   }
 
   async getTask(id: string): Promise<Task | null> {
-    // TODO: Implement get single task
-    // 1. Query database for task by id
-    // 2. Return null if not found or is_deleted is true
-    throw new Error('Not implemented');
+    const task = await this.db.get(
+      `SELECT * FROM tasks WHERE id = ?;`,
+      [id]
+    );
+    if (!task) {
+      return null;
+    }
+    else if (task.is_deleted) {
+      return null;
+    }
+    else {
+      task.created_at = new Date(task.created_at).toLocaleString();
+      task.updated_at = new Date(task.updated_at).toLocaleString();
+      return task;
+    }
+
   }
 
   async getAllTasks(): Promise<Task[]> {
-    // TODO: Implement get all non-deleted tasks
-    // 1. Query database for all tasks where is_deleted = false
-    // 2. Return array of tasks
-    throw new Error('Not implemented');
+    const tasks = await this.db.all(
+      `SELECT * FROM tasks WHERE is_deleted = 0;`
+    );
+
+    if (!tasks)
+      return [];
+
+    tasks.forEach(task => {
+      task.created_at = new Date(task.created_at).toLocaleString();
+      task.updated_at = new Date(task.updated_at).toLocaleString();
+    });
+    return tasks;
+
   }
 
   async getTasksNeedingSync(): Promise<Task[]> {
